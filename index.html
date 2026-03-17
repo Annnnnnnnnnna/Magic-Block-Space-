@@ -63,7 +63,7 @@
 
     h1 {
       margin: 0 0 14px;
-      font-size: 48px;
+      font-size: 60px;
       line-height: 1.1;
     }
 
@@ -125,7 +125,6 @@
     <div>Score: <span id="score">0</span></div>
     <div>Best Score: <span id="bestScore">0</span></div>
     <div>Time: <span id="timeSurvived">0.0</span>s</div>
-    <div>Difficulty: <span id="difficultyLevel">1.00</span>x</div>
   </div>
 
   <div id="startScreen">
@@ -133,18 +132,15 @@
       <h1>Magic Block Space</h1>
       <h2>How to Play</h2>
       <ul>
-        <li>You control the magic space ship using your mouse cursor.</li>
-        <li>You can also use the keyboard: <strong>W A S D</strong> or <strong>Arrow Keys</strong>.</li>
-        <li>Your hero is the image <strong>k.png</strong>.</li>
-        <li>Falling meteorites use the images <strong>o.png</strong> and <strong>a.png</strong>.</li>
-        <li>Bonus items use the image <strong>s.png</strong>.</li>
-        <li>The background image is <strong>image.png</strong>.</li>
-        <li>Avoid every meteorite. One hit ends the game immediately.</li>
-        <li>Collect bonus items to increase your score.</li>
-        <li>Every collected bonus destroys all currently visible meteorites in a large explosion.</li>
-        <li>The game is endless, so your goal is to survive as long as possible and collect as many bonuses as you can.</li>
+        <li>You control a wizard with your mouse cursor.</li>
+        <li>You can also move with <strong>W A S D</strong> or the <strong>Arrow Keys</strong>.</li>
+        <li>Avoid the falling meteorites at all costs.</li>
+        <li>Catch the <strong>Magic</strong> bonus to gain score.</li>
+        <li>Whenever you collect a Magic bonus, all meteorites currently visible on the screen disappear in a big explosion.</li>
+        <li>The game is endless, so try to survive as long as possible and collect as many Magic bonuses as you can.</li>
         <li>The longer you survive, the faster and more dangerous the meteorites become.</li>
-        <li>After losing, the game shows your final result and automatically saves your best score in the browser.</li>
+        <li>If a meteorite hits the wizard, the game ends immediately.</li>
+        <li>After the game ends, your final result is shown and your best score is saved automatically.</li>
       </ul>
       <button id="startBtn">Start Game</button>
     </div>
@@ -170,7 +166,6 @@
     const scoreEl = document.getElementById("score");
     const bestScoreEl = document.getElementById("bestScore");
     const timeSurvivedEl = document.getElementById("timeSurvived");
-    const difficultyLevelEl = document.getElementById("difficultyLevel");
 
     const startScreen = document.getElementById("startScreen");
     const gameOverScreen = document.getElementById("gameOverScreen");
@@ -233,8 +228,8 @@
 
     const keys = {};
 
-    const PLAYER_WIDTH = 120;
-    const PLAYER_HEIGHT = 120;
+    const PLAYER_WIDTH = 145;
+    const PLAYER_HEIGHT = 145;
 
     const BASE_METEOR_SPAWN_INTERVAL = 850;
     const BASE_BONUS_SPAWN_INTERVAL = 1800;
@@ -317,7 +312,6 @@
 
       scoreEl.textContent = score;
       timeSurvivedEl.textContent = survivalTime.toFixed(1);
-      difficultyLevelEl.textContent = "1.00";
 
       gameState = "playing";
     }
@@ -427,10 +421,9 @@
       if (gameState !== "playing") return;
 
       survivalTime += dt;
+      timeSurvivedEl.textContent = survivalTime.toFixed(1);
 
       const difficulty = getDifficultyMultiplier();
-      difficultyLevelEl.textContent = difficulty.toFixed(2);
-      timeSurvivedEl.textContent = survivalTime.toFixed(1);
 
       if (keys["ArrowLeft"] || keys["a"] || keys["A"]) {
         player.x -= player.speed * dt;
