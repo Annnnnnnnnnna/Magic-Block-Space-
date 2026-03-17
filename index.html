@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Magic Block Space</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background: #000;
+      font-family: system-ui, sans-serif;
+    }
+
+    canvas {
+      display: block;
+      cursor: none;
+    }
+
+    #ui {
+      position: fixed;
+      top: 10px;
+      left: 10px;
+      z-index: 10;
+      color: #fff;
+      text-shadow: 0 0 6px rgba(0, 0, 0, 0.8);
+      font-size: 18px;
+      line-height: 1.5;
+      user-select: none;
+    }
+
+    #startScreen,
+    #gameOverScreen {
+      position: fixed;
+      inset: 0;
+      z-index: 20;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      text-align: center;
+      background: rgba(0, 0, 0, 0.78);
+      color: #fff;
+      padding: 24px;
+      box-sizing: border-box;
+    }
+
+    #startScreen {
+      display: flex;
+    }
+
+    .panel {
+      max-width: 760px;
+      width: 100%;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: 18px;
+      padding: 28px;
+      box-sizing: border-box;
+      backdrop-filter: blur(4px);
+    }
+
+    h1 {
+      margin: 0 0 14px;
+      font-size: 48px;
+      line-height: 1.1;
+    }
+
+    h2 {
+      margin: 0 0 14px;
+      font-size: 28px;
+    }
+
+    p {
+      margin: 10px 0;
+      font-size: 18px;
+    }
+
+    ul {
+      text-align: left;
+      margin: 18px auto 0;
+      padding-left: 24px;
+      max-width: 640px;
+      font-size: 18px;
+      line-height: 1.7;
+    }
+
+    li {
+      margin-bottom: 8px;
+    }
+
+    button {
+      margin-top: 22px;
+      padding: 12px 24px;
+      font-size: 18px;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      background: #ffffff;
+      color: #000;
+      font-weight: 700;
+      transition: transform 0.15s ease, opacity 0.15s ease;
+    }
+
+    button:hover {
+      transform: scale(1.04);
+    }
+
+    button:active {
+      transform: scale(0.98);
+    }
+
+    .stats {
+      margin-top: 14px;
+      font-size: 20px;
+      line-height: 1.8;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="game"></canvas>
+
+  <div id="ui">
+    <div>Score: <span id="score">0</span></div>
+    <div>Best Score: <span id="bestScore">0</span></div>
+    <div>Time: <span id="timeSurvived">0.0</span>s</div>
+    <div>Difficulty: <span id="difficultyLevel">1.00</span>x</div>
+  </div>
+
+  <div id="startScreen">
+    <div class="panel">
+      <h1>Magic Block Space</h1>
+      <h2>How to Play</h2>
+      <ul>
+        <li>You control the magic space ship using your mouse cursor.</li>
+        <li>You can also use the keyboard: <strong>W A S D</strong> or <strong>Arrow Keys</strong>.</li>
+        <li>Your hero is the image <strong>k.png</strong>.</li>
+        <li>Falling meteorites use the images <strong>o.png</strong> and <strong>a.png</strong>.</li>
+        <li>Bonus items use the image <strong>s.png</strong>.</li>
+        <li>The background image is <strong>image.png</strong>.</li>
+        <li>Avoid every meteorite. One hit ends the game immediately.</li>
+        <li>Collect bonus items to increase your score.</li>
+        <li>Every collected bonus destroys all currently visible meteorites in a large explosion.</li>
+        <li>The game is endless, so your goal is to survive as long as possible and collect as many bonuses as you can.</li>
+        <li>The longer you survive, the faster and more dangerous the meteorites become.</li>
+        <li>After losing, the game shows your final result and automatically saves your best score in the browser.</li>
+      </ul>
+      <button id="startBtn">Start Game</button>
+    </div>
+  </div>
+
+  <div id="gameOverScreen">
+    <div class="panel">
+      <h1>Game Over</h1>
+      <p>You were hit by a meteorite.</p>
+      <div class="stats">
+        <div>Final Score: <span id="finalScore">0</span></div>
+        <div>Best Score: <span id="finalBestScore">0</span></div>
+        <div>Time Survived: <span id="finalTime">0.0</span>s</div>
+      </div>
+      <button id="restartBtn">Play Again</button>
+    </div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById("game");
+    const ctx = canvas.getContext("2d");
+
+    const scoreEl = document.getElementById("score");
+    const bestScoreEl = document.getElementById("bestScore");
+    const timeSurvivedEl = document.getElementById("timeSurvived");
+    const difficultyLevelEl = document.getElementById("difficultyLevel");
+
+    const startScreen = document.getElementById("startScreen");
+    const gameOverScreen = document.getElementById("gameOverScreen");
+
+    const startBtn = document.getElementById("startBtn");
+    const restartBtn = document.getElementById("restartBtn");
+
+    const finalScoreEl = document.getElementById("finalScore");
+    const finalBestScoreEl = document.getElementById("finalBestScore");
+    const finalTimeEl = document.getElementById("finalTime");
+
+    function resizeCanvas() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+
+    window.addEventListener("resize", resizeCanvas);
+    resizeCanvas();
+
+    const backgroundImage = new Image();
+    const playerImage = new Image();
+    const meteorImage1 = new Image();
+    const meteorImage2 = new Image();
+    const bonusImage = new Image();
+
+    backgroundImage.src = "image.png";
+    playerImage.src = "k.png";
+    meteorImage1.src = "o.png";
+    meteorImage2.src = "a.png";
+    bonusImage.src = "s.png";
+
+    const allImages = [
+      backgroundImage,
+      playerImage,
+      meteorImage1,
+      meteorImage2,
+      bonusImage
+    ];
+
+    let loadedImages = 0;
+    allImages.forEach(image => {
+      image.onload = () => {
+        loadedImages++;
+        if (loadedImages === allImages.length) {
+          init();
+        }
+      };
+    });
+
+    let gameState = "start";
+    let player = null;
+    let meteorites = [];
+    let bonuses = [];
+
+    let lastTime = 0;
+    let meteorSpawnTimer = 0;
+    let bonusSpawnTimer = 0;
+    let survivalTime = 0;
+    let score = 0;
+
+    const keys = {};
+
+    const PLAYER_WIDTH = 120;
+    const PLAYER_HEIGHT = 120;
+
+    const BASE_METEOR_SPAWN_INTERVAL = 850;
+    const BASE_BONUS_SPAWN_INTERVAL = 1800;
+
+    const BASE_METEOR_SPEED_MIN = 220;
+    const BASE_METEOR_SPEED_MAX = 360;
+    const BASE_METEOR_ACCELERATION = 220;
+    const GLOBAL_DIFFICULTY_GROWTH = 0.07;
+
+    const BONUS_SPEED_MIN = 140;
+    const BONUS_SPEED_MAX = 230;
+
+    const EXPLOSION_DURATION = 0.35;
+    const BEST_SCORE_KEY = "magic_block_space_best_score";
+
+    function getBestScore() {
+      return Number(localStorage.getItem(BEST_SCORE_KEY) || 0);
+    }
+
+    function setBestScore(value) {
+      localStorage.setItem(BEST_SCORE_KEY, String(value));
+    }
+
+    function updateBestScoreUI() {
+      bestScoreEl.textContent = getBestScore();
+    }
+
+    window.addEventListener("keydown", event => {
+      keys[event.key] = true;
+    });
+
+    window.addEventListener("keyup", event => {
+      keys[event.key] = false;
+    });
+
+    canvas.addEventListener("mousemove", event => {
+      if (!player || gameState !== "playing") return;
+
+      const rect = canvas.getBoundingClientRect();
+      player.x = event.clientX - rect.left - player.width / 2;
+      player.y = event.clientY - rect.top - player.height / 2;
+      clampPlayerToScreen();
+    });
+
+    function clampPlayerToScreen() {
+      if (!player) return;
+
+      if (player.x < 0) player.x = 0;
+      if (player.y < 0) player.y = 0;
+      if (player.x + player.width > canvas.width) {
+        player.x = canvas.width - player.width;
+      }
+      if (player.y + player.height > canvas.height) {
+        player.y = canvas.height - player.height;
+      }
+    }
+
+    function init() {
+      updateBestScoreUI();
+      lastTime = performance.now();
+      requestAnimationFrame(gameLoop);
+    }
+
+    function resetGame() {
+      player = {
+        x: canvas.width / 2 - PLAYER_WIDTH / 2,
+        y: canvas.height - PLAYER_HEIGHT - 40,
+        width: PLAYER_WIDTH,
+        height: PLAYER_HEIGHT,
+        speed: 430
+      };
+
+      meteorites = [];
+      bonuses = [];
+
+      meteorSpawnTimer = 0;
+      bonusSpawnTimer = 0;
+      survivalTime = 0;
+      score = 0;
+
+      scoreEl.textContent = score;
+      timeSurvivedEl.textContent = survivalTime.toFixed(1);
+      difficultyLevelEl.textContent = "1.00";
+
+      gameState = "playing";
+    }
+
+    function getDifficultyMultiplier() {
+      return 1 + survivalTime * GLOBAL_DIFFICULTY_GROWTH;
+    }
+
+    function getCurrentMeteorSpawnInterval() {
+      const difficulty = getDifficultyMultiplier();
+      return Math.max(220, BASE_METEOR_SPAWN_INTERVAL / Math.sqrt(difficulty));
+    }
+
+    function getCurrentBonusSpawnInterval() {
+      return BASE_BONUS_SPAWN_INTERVAL;
+    }
+
+    function startGame() {
+      resetGame();
+      startScreen.style.display = "none";
+      gameOverScreen.style.display = "none";
+    }
+
+    startBtn.addEventListener("click", startGame);
+    restartBtn.addEventListener("click", startGame);
+
+    function spawnMeteor() {
+      const size = 72;
+      const x = Math.random() * (canvas.width - size);
+      const difficulty = getDifficultyMultiplier();
+
+      const baseSpeed =
+        (BASE_METEOR_SPEED_MIN + Math.random() * (BASE_METEOR_SPEED_MAX - BASE_METEOR_SPEED_MIN)) *
+        difficulty;
+
+      const horizontalSpeed = ((Math.random() * 220) - 110) * Math.min(2.2, 0.9 + difficulty * 0.08);
+      const image = Math.random() < 0.5 ? meteorImage1 : meteorImage2;
+
+      const angle = Math.random() * Math.PI * 2;
+      const angleSpeed = (Math.random() * 2 - 1) * (1.8 + difficulty * 0.12);
+
+      meteorites.push({
+        x,
+        y: -size,
+        width: size,
+        height: size,
+        speed: baseSpeed,
+        verticalAcceleration: BASE_METEOR_ACCELERATION * Math.min(3.5, difficulty),
+        vx: horizontalSpeed,
+        angle,
+        angleSpeed,
+        image,
+        exploding: false,
+        explosionTime: 0
+      });
+    }
+
+    function spawnBonus() {
+      const size = 52;
+      const x = Math.random() * (canvas.width - size);
+      const speed = BONUS_SPEED_MIN + Math.random() * (BONUS_SPEED_MAX - BONUS_SPEED_MIN);
+
+      bonuses.push({
+        x,
+        y: -size,
+        width: size,
+        height: size,
+        speed
+      });
+    }
+
+    function triggerMeteorExplosions() {
+      meteorites.forEach(meteor => {
+        meteor.exploding = true;
+        meteor.explosionTime = 0;
+        meteor.speed = 0;
+        meteor.vx = 0;
+      });
+    }
+
+    function isColliding(a, b) {
+      return (
+        a.x < b.x + b.width &&
+        a.x + a.width > b.x &&
+        a.y < b.y + b.height &&
+        a.y + a.height > b.y
+      );
+    }
+
+    function endGame() {
+      gameState = "gameOver";
+
+      const bestScore = getBestScore();
+      if (score > bestScore) {
+        setBestScore(score);
+      }
+
+      finalScoreEl.textContent = score;
+      finalBestScoreEl.textContent = getBestScore();
+      finalTimeEl.textContent = survivalTime.toFixed(1);
+
+      updateBestScoreUI();
+      gameOverScreen.style.display = "flex";
+    }
+
+    function update(dt) {
+      if (gameState !== "playing") return;
+
+      survivalTime += dt;
+
+      const difficulty = getDifficultyMultiplier();
+      difficultyLevelEl.textContent = difficulty.toFixed(2);
+      timeSurvivedEl.textContent = survivalTime.toFixed(1);
+
+      if (keys["ArrowLeft"] || keys["a"] || keys["A"]) {
+        player.x -= player.speed * dt;
+      }
+      if (keys["ArrowRight"] || keys["d"] || keys["D"]) {
+        player.x += player.speed * dt;
+      }
+      if (keys["ArrowUp"] || keys["w"] || keys["W"]) {
+        player.y -= player.speed * dt;
+      }
+      if (keys["ArrowDown"] || keys["s"] || keys["S"]) {
+        player.y += player.speed * dt;
+      }
+
+      clampPlayerToScreen();
+
+      meteorSpawnTimer += dt * 1000;
+      bonusSpawnTimer += dt * 1000;
+
+      const meteorInterval = getCurrentMeteorSpawnInterval();
+      const bonusInterval = getCurrentBonusSpawnInterval();
+
+      if (meteorSpawnTimer >= meteorInterval) {
+        const extraChance = Math.min(0.65, survivalTime / 45);
+        const meteorCount = Math.random() < extraChance ? 2 : 1;
+
+        for (let i = 0; i < meteorCount; i++) {
+          spawnMeteor();
+        }
+
+        meteorSpawnTimer = 0;
+      }
+
+      if (bonusSpawnTimer >= bonusInterval) {
+        spawnBonus();
+        bonusSpawnTimer = 0;
+      }
+
+      meteorites.forEach(meteor => {
+        if (!meteor.exploding) {
+          meteor.speed += meteor.verticalAcceleration * dt;
+          meteor.y += meteor.speed * dt;
+          meteor.x += meteor.vx * dt;
+          meteor.angle += meteor.angleSpeed * dt;
+
+          if (meteor.x < -meteor.width * 2 || meteor.x > canvas.width + meteor.width * 2) {
+            meteor.x = Math.random() * (canvas.width - meteor.width);
+          }
+        } else {
+          meteor.explosionTime += dt;
+        }
+      });
+
+      meteorites = meteorites.filter(meteor => {
+        if (meteor.exploding) {
+          return meteor.explosionTime < EXPLOSION_DURATION;
+        }
+        return meteor.y < canvas.height + meteor.height;
+      });
+
+      bonuses.forEach(bonus => {
+        bonus.y += bonus.speed * dt;
+      });
+
+      bonuses = bonuses.filter(bonus => bonus.y < canvas.height + bonus.height);
+
+      for (const meteor of meteorites) {
+        if (!meteor.exploding && isColliding(player, meteor)) {
+          endGame();
+          return;
+        }
+      }
+
+      bonuses = bonuses.filter(bonus => {
+        if (isColliding(player, bonus)) {
+          score++;
+          scoreEl.textContent = score;
+
+          if (score > getBestScore()) {
+            setBestScore(score);
+            updateBestScoreUI();
+          }
+
+          triggerMeteorExplosions();
+          return false;
+        }
+        return true;
+      });
+    }
+
+    function drawBackground() {
+      if (backgroundImage.complete && backgroundImage.naturalWidth > 0) {
+        const scale = Math.max(
+          canvas.width / backgroundImage.width,
+          canvas.height / backgroundImage.height
+        );
+
+        const width = backgroundImage.width * scale;
+        const height = backgroundImage.height * scale;
+        const x = (canvas.width - width) / 2;
+        const y = (canvas.height - height) / 2;
+
+        ctx.drawImage(backgroundImage, x, y, width, height);
+      } else {
+        ctx.fillStyle = "#000";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      }
+    }
+
+    function drawPlayer() {
+      if (!player) return;
+
+      if (playerImage.complete && playerImage.naturalWidth > 0) {
+        ctx.drawImage(playerImage, player.x, player.y, player.width, player.height);
+      } else {
+        ctx.fillStyle = "#4fc3f7";
+        ctx.fillRect(player.x, player.y, player.width, player.height);
+      }
+    }
+
+    function drawExplosion(x, y, size, progress) {
+      const maxRadius = size * 1.6;
+      const radius = maxRadius * progress;
+      const alpha = 1 - progress;
+
+      ctx.save();
+      ctx.globalAlpha = alpha;
+
+      ctx.beginPath();
+      ctx.arc(x + size / 2, y + size / 2, radius, 0, Math.PI * 2);
+      ctx.fillStyle = "orange";
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.arc(x + size / 2, y + size / 2, radius * 0.55, 0, Math.PI * 2);
+      ctx.fillStyle = "yellow";
+      ctx.fill();
+
+      ctx.restore();
+    }
+
+    function drawMeteorites() {
+      meteorites.forEach(meteor => {
+        if (!meteor.exploding) {
+          const centerX = meteor.x + meteor.width / 2;
+          const centerY = meteor.y + meteor.height / 2;
+
+          ctx.save();
+          ctx.translate(centerX, centerY);
+          ctx.rotate(meteor.angle);
+
+          if (meteor.image.complete && meteor.image.naturalWidth > 0) {
+            ctx.drawImage(
+              meteor.image,
+              -meteor.width / 2,
+              -meteor.height / 2,
+              meteor.width,
+              meteor.height
+            );
+          } else {
+            ctx.fillStyle = "#888";
+            ctx.fillRect(
+              -meteor.width / 2,
+              -meteor.height / 2,
+              meteor.width,
+              meteor.height
+            );
+          }
+
+          ctx.restore();
+        } else {
+          const progress = Math.min(1, meteor.explosionTime / EXPLOSION_DURATION);
+          drawExplosion(meteor.x, meteor.y, meteor.width, progress);
+        }
+      });
+    }
+
+    function drawBonuses() {
+      bonuses.forEach(bonus => {
+        if (bonusImage.complete && bonusImage.naturalWidth > 0) {
+          ctx.drawImage(bonusImage, bonus.x, bonus.y, bonus.width, bonus.height);
+        } else {
+          ctx.fillStyle = "#ffeb3b";
+          ctx.fillRect(bonus.x, bonus.y, bonus.width, bonus.height);
+        }
+      });
+    }
+
+    function draw() {
+      drawBackground();
+      drawPlayer();
+      drawMeteorites();
+      drawBonuses();
+    }
+
+    function gameLoop(timestamp) {
+      const dt = (timestamp - lastTime) / 1000;
+      lastTime = timestamp;
+
+      update(dt);
+      draw();
+
+      requestAnimationFrame(gameLoop);
+    }
+  </script>
+</body>
+</html>
